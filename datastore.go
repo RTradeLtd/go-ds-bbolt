@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	defaultBucket                     = []byte("datastore")
-	_             datastore.Datastore = (*Datastore)(nil)
+	defaultBucket                    = []byte("datastore")
+	_             datastore.Batching = (*Datastore)(nil)
 )
 
 // Datastore implements an ipfs datastore
@@ -116,6 +116,13 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 	r := query.ResultsWithChan(q, results)
 	r = query.NaiveQueryApply(q, r)
 	return r, nil
+}
+
+// Batch returns a basic batched bolt datastore wrapper
+// it is a temporary method until we implement a proper
+// transactional batched datastore
+func (d *Datastore) Batch() (datastore.Batch, error) {
+	return datastore.NewBasicBatch(d), nil
 }
 
 // Close is used to close the underlying datastore
