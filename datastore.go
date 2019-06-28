@@ -94,12 +94,12 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		cursor := tx.Bucket(d.bucket).Cursor()
 		if q.Prefix == "" {
-			for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
+			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 				result := query.Result{}
 				key := datastore.NewKey(string(k))
 				result.Entry.Key = key.String()
 				if !q.KeysOnly {
-					result.Entry.Value, result.Error = d.Get(key)
+					result.Entry.Value = v
 				}
 				select {
 				case resBuilder.Output <- result:
@@ -110,12 +110,12 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 			return nil
 		}
 		pref := []byte(q.Prefix)
-		for k, _ := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, _ = cursor.Next() {
+		for k, v := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, v = cursor.Next() {
 			result := query.Result{}
 			key := datastore.NewKey(string(k))
 			result.Entry.Key = key.String()
 			if !q.KeysOnly {
-				result.Entry.Value, result.Error = d.Get(key)
+				result.Entry.Value = v
 			}
 			// initiate a non-blocking channel send
 			select {
