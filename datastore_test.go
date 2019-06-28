@@ -1,6 +1,7 @@
 package dsbbolt
 
 import (
+	"fmt"
 	"testing"
 
 	"reflect"
@@ -62,18 +63,17 @@ func Test_Datastore(t *testing.T) {
 		t.Fatal("incorrect data size")
 	}
 
-	_, err = ds.Query(query.Query{Prefix: key.String()})
-	//rs, err := ds.Query(query.Query{Prefix: key.String()})
+	rs, err := ds.Query(query.Query{Prefix: key.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	/* currently doesn't work
-	 	res, err := rs.Rest()
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Println(res)
-	*/
+	res, err := rs.Rest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range res {
+		fmt.Printf("%+v\n", v)
+	}
 	if err := ds.Delete(key); err != nil {
 		t.Fatal(err)
 	}

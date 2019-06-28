@@ -91,7 +91,7 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 // https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
 // https://github.com/boltdb/bolt/issues/518#issuecomment-187211346
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
-	results := make(chan query.Result)
+	resBuilder := query.NewResultBuilder(q)
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		cursor := tx.Bucket(d.bucket).Cursor()
 		pref := []byte(q.Prefix)
@@ -104,7 +104,7 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 			}
 			// initiate a non-blocking channel send
 			select {
-			case results <- result:
+			case resBuilder.Output <- result:
 			default:
 				continue
 			}
@@ -113,9 +113,9 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 	}); err != nil {
 		return nil, err
 	}
-	r := query.ResultsWithChan(q, results)
-	r = query.NaiveQueryApply(q, r)
-	return r, nil
+	// close the result builder since we are done using it
+	resBuilder.Process.Close()
+	return resBuilder.Results(), nil
 }
 
 // Batch returns a basic batched bolt datastore wrapper
