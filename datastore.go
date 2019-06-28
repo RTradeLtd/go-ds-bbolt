@@ -94,6 +94,22 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 	resBuilder := query.NewResultBuilder(q)
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		cursor := tx.Bucket(d.bucket).Cursor()
+		if q.Prefix == "" {
+			for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
+				result := query.Result{}
+				key := datastore.NewKey(fmt.Sprintf("%v", k))
+				result.Entry.Key = key.String()
+				if !q.KeysOnly {
+					result.Entry.Value, result.Error = d.Get(key)
+				}
+				select {
+				case resBuilder.Output <- result:
+				default:
+					continue
+				}
+			}
+			return nil
+		}
 		pref := []byte(q.Prefix)
 		for k, _ := cursor.Seek(pref); bytes.HasPrefix(k, pref); k, _ = cursor.Next() {
 			result := query.Result{}
