@@ -22,7 +22,7 @@ func Test_NewDatastore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if ds, err := NewDatastore(tt.args.path, nil); (err != nil) != tt.wantErr {
+			if ds, err := NewDatastore(tt.args.path, nil, nil); (err != nil) != tt.wantErr {
 				t.Fatalf("NewDatastore() err = %v, wantErr %v", err, tt.wantErr)
 			} else if !tt.wantErr {
 				if err := ds.Close(); err != nil {
@@ -34,7 +34,7 @@ func Test_NewDatastore(t *testing.T) {
 }
 
 func Test_Datastore(t *testing.T) {
-	ds, err := NewDatastore("./tmp", nil)
+	ds, err := NewDatastore("./tmp", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

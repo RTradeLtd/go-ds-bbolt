@@ -10,42 +10,46 @@ import (
 )
 
 var (
-	defaultBucket                     = "datastore"
+	defaultBucket                     = []byte("datastore")
 	_             datastore.Datastore = (*Datastore)(nil)
 )
 
 // Datastore implements an ipfs datastore
 // backed by a bbolt db
 type Datastore struct {
-	db *bbolt.DB
+	db     *bbolt.DB
+	bucket []byte
 }
 
 // NewDatastore is used to instantiate our datastore
-func NewDatastore(path string, opts *bbolt.Options) (*Datastore, error) {
+func NewDatastore(path string, opts *bbolt.Options, bucket []byte) (*Datastore, error) {
 	db, err := bbolt.Open(path, os.FileMode(0640), nil)
 	if err != nil {
 		return nil, err
 	}
+	if bucket == nil {
+		bucket = defaultBucket
+	}
 	if err := db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(defaultBucket))
+		_, err := tx.CreateBucketIfNotExists(bucket)
 		return err
 	}); err != nil {
 		return nil, err
 	}
-	return &Datastore{db}, nil
+	return &Datastore{db, bucket}, nil
 }
 
 // Put is used to store something in our underlying datastore
 func (d *Datastore) Put(key datastore.Key, value []byte) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		return tx.Bucket([]byte(defaultBucket)).Put(key.Bytes(), value)
+		return tx.Bucket(d.bucket).Put(key.Bytes(), value)
 	})
 }
 
 // Delete removes a key/value pair from our datastore
 func (d *Datastore) Delete(key datastore.Key) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		return tx.Bucket([]byte(defaultBucket)).Delete(key.Bytes())
+		return tx.Bucket(d.bucket).Delete(key.Bytes())
 	})
 }
 
@@ -53,7 +57,7 @@ func (d *Datastore) Delete(key datastore.Key) error {
 func (d *Datastore) Get(key datastore.Key) ([]byte, error) {
 	var data []byte
 	if err := d.db.View(func(tx *bbolt.Tx) error {
-		data = tx.Bucket([]byte(defaultBucket)).Get(key.Bytes())
+		data = tx.Bucket(d.bucket).Get(key.Bytes())
 		return nil
 	}); err != nil {
 		return nil, err
