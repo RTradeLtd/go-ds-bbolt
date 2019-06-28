@@ -1,7 +1,10 @@
 package dsbbolt
 
 import (
+	"fmt"
 	"os"
+
+	"bytes"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -84,8 +87,30 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 }
 
 // Query performs a complex search query on the underlying datastore
+// For more information see :
+// https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
+// https://github.com/boltdb/bolt/issues/518#issuecomment-187211346
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
-	return nil, nil
+	results := make(chan query.Result)
+	if err := d.db.View(func(tx *bbolt.Tx) error {
+		cursor := tx.Bucket(d.bucket).Cursor()
+		pref := []byte(q.Prefix)
+		for k, _ := cursor.Seek(pref); bytes.HasPrefix(k, pref); k, _ = cursor.Next() {
+			result := query.Result{}
+			key := datastore.NewKey(fmt.Sprintf("%v", k))
+			result.Entry.Key = key.String()
+			if !q.KeysOnly {
+				result.Entry.Value, result.Error = d.Get(key)
+			}
+			results <- result
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	r := query.ResultsWithChan(q, results)
+	r = query.NaiveQueryApply(q, r)
+	return r, nil
 }
 
 // Close is used to close the underlying datastore
