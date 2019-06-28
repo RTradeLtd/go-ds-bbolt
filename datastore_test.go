@@ -1,6 +1,12 @@
 package dsbbolt
 
-import "testing"
+import (
+	"testing"
+
+	"reflect"
+
+	"github.com/ipfs/go-datastore"
+)
 
 func Test_NewDatastore(t *testing.T) {
 	type args struct {
@@ -24,5 +30,27 @@ func Test_NewDatastore(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func Test_Datastore(t *testing.T) {
+	ds, err := NewDatastore("./tmp", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ds.Close()
+	key := datastore.NewKey("keks")
+	if err := ds.Put(key, []byte("hello world")); err != nil {
+		t.Fatal(err)
+	}
+	data, err := ds.Get(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(data, []byte("hello world")) {
+		t.Fatal("bad data")
+	}
+	if err := ds.Delete(key); err != nil {
+		t.Fatal(err)
 	}
 }
