@@ -62,12 +62,24 @@ func Test_Datastore(t *testing.T) {
 	} else if size != len([]byte("hello world")) {
 		t.Fatal("incorrect data size")
 	}
-
+	// test a query where we specify a search key
 	rs, err := ds.Query(query.Query{Prefix: key.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	res, err := rs.Rest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range res {
+		fmt.Printf("%+v\n", v)
+	}
+	// test a query where we dont specify a search key
+	rs, err = ds.Query(query.Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = rs.Rest()
 	if err != nil {
 		t.Fatal(err)
 	}
