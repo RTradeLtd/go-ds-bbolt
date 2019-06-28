@@ -26,17 +26,27 @@ func NewDatastore(path string, opts *bbolt.Options) (*Datastore, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := db.Update(func(tx *bbolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte(defaultBucket))
+		return err
+	}); err != nil {
+		return nil, err
+	}
 	return &Datastore{db}, nil
 }
 
 // Put is used to store something in our underlying datastore
 func (d *Datastore) Put(key datastore.Key, value []byte) error {
-	return nil
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket([]byte(defaultBucket)).Put(key.Bytes(), value)
+	})
 }
 
 // Delete removes a key/value pair from our datastore
 func (d *Datastore) Delete(key datastore.Key) error {
-	return nil
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket([]byte(defaultBucket)).Delete(key.Bytes())
+	})
 }
 
 // Get is used to retrieve a value from the datastore
