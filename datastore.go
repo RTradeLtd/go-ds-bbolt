@@ -102,7 +102,12 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 			if !q.KeysOnly {
 				result.Entry.Value, result.Error = d.Get(key)
 			}
-			results <- result
+			// initiate a non-blocking channel send
+			select {
+			case results <- result:
+			default:
+				continue
+			}
 		}
 		return nil
 	}); err != nil {
