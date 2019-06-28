@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 )
 
 func Test_NewDatastore(t *testing.T) {
@@ -60,6 +61,19 @@ func Test_Datastore(t *testing.T) {
 	} else if size != len([]byte("hello world")) {
 		t.Fatal("incorrect data size")
 	}
+
+	_, err = ds.Query(query.Query{Prefix: key.String()})
+	//rs, err := ds.Query(query.Query{Prefix: key.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	/* currently doesn't work
+	 	res, err := rs.Rest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Println(res)
+	*/
 	if err := ds.Delete(key); err != nil {
 		t.Fatal(err)
 	}
@@ -73,4 +87,5 @@ func Test_Datastore(t *testing.T) {
 	} else if size != 0 {
 		t.Fatal("bad size")
 	}
+
 }
