@@ -50,7 +50,27 @@ func Test_Datastore(t *testing.T) {
 	if !reflect.DeepEqual(data, []byte("hello world")) {
 		t.Fatal("bad data")
 	}
+	if has, err := ds.Has(key); err != nil {
+		t.Fatal(err)
+	} else if !has {
+		t.Fatal("should have key")
+	}
+	if size, err := ds.GetSize(key); err != nil {
+		t.Fatal(err)
+	} else if size != len([]byte("hello world")) {
+		t.Fatal("incorrect data size")
+	}
 	if err := ds.Delete(key); err != nil {
 		t.Fatal(err)
+	}
+	if has, err := ds.Has(key); err != nil {
+		t.Fatal(err)
+	} else if has {
+		t.Fatal("should not have key")
+	}
+	if size, err := ds.GetSize(key); err != nil {
+		t.Fatal(err)
+	} else if size != 0 {
+		t.Fatal("bad size")
 	}
 }
