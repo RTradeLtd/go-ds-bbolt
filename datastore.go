@@ -88,7 +88,7 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 // Query performs a complex search query on the underlying datastore
 // For more information see :
 // https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
-// https://github.com/boltdb/bolt/issues/518#issuecomment-187211346
+// https://github.com/etcd-io/bbolt#prefix-scans
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
 	resBuilder := query.NewResultBuilder(q)
 	if err := d.db.View(func(tx *bbolt.Tx) error {
@@ -110,7 +110,7 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 			return nil
 		}
 		pref := []byte(q.Prefix)
-		for k, _ := cursor.Seek(pref); bytes.HasPrefix(k, pref); k, _ = cursor.Next() {
+		for k, _ := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, _ = cursor.Next() {
 			result := query.Result{}
 			key := datastore.NewKey(string(k))
 			result.Entry.Key = key.String()

@@ -1,7 +1,6 @@
 package dsbbolt
 
 import (
-	"fmt"
 	"testing"
 
 	"reflect"
@@ -71,8 +70,8 @@ func Test_Datastore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, v := range res {
-		fmt.Printf("%+v\n", v)
+	if len(res) == 0 {
+		t.Fatal("bad number of results")
 	}
 	// test a query where we dont specify a search key
 	rs, err = ds.Query(query.Query{})
@@ -83,8 +82,20 @@ func Test_Datastore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, v := range res {
-		fmt.Printf("%+v\n", v)
+	if len(res) == 0 {
+		t.Fatal("bad number of results")
+	}
+	// test a query where we specify a partial prefix
+	rs, err = ds.Query(query.Query{Prefix: "/kek"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = rs.Rest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) == 0 {
+		t.Fatal("bad number of results")
 	}
 	if err := ds.Delete(key); err != nil {
 		t.Fatal(err)
