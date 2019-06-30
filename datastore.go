@@ -90,47 +90,36 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 // https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
 // https://github.com/etcd-io/bbolt#prefix-scans
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
-	resBuilder := query.NewResultBuilder(q)
+	var entries []query.Entry
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		cursor := tx.Bucket(d.bucket).Cursor()
 		if q.Prefix == "" {
 			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-				result := query.Result{}
-				key := datastore.NewKey(string(k))
-				result.Entry.Key = key.String()
+				var entry query.Entry
+				entry.Key = string(k)
 				if !q.KeysOnly {
-					result.Entry.Value = v
+					entry.Value = v
 				}
-				select {
-				case resBuilder.Output <- result:
-				default:
-					continue
-				}
+				entries = append(entries, entry)
 			}
 			return nil
 		}
 		pref := []byte(q.Prefix)
 		for k, v := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, v = cursor.Next() {
-			result := query.Result{}
-			key := datastore.NewKey(string(k))
-			result.Entry.Key = key.String()
+			var entry query.Entry
+			entry.Key = string(k)
 			if !q.KeysOnly {
-				result.Entry.Value = v
+				entry.Value = v
 			}
-			// initiate a non-blocking channel send
-			select {
-			case resBuilder.Output <- result:
-			default:
-				continue
-			}
+			entries = append(entries, entry)
 		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
+	results := query.ResultsWithEntries(q, entries)
 	// close the result builder since we are done using it
-	resBuilder.Process.Close()
-	return resBuilder.Results(), nil
+	return results, nil
 }
 
 // Batch returns a basic batched bolt datastore wrapper
