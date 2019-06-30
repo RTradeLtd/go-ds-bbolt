@@ -1,6 +1,7 @@
 package dsbbolt
 
 import (
+	"fmt"
 	"testing"
 
 	"reflect"
@@ -41,7 +42,11 @@ func Test_Datastore(t *testing.T) {
 	}
 	defer ds.Close()
 	key := datastore.NewKey("keks")
+	key2 := datastore.NewKey("keks2")
 	if err := ds.Put(key, []byte("hello world")); err != nil {
+		t.Fatal(err)
+	}
+	if err := ds.Put(key2, []byte("hello world")); err != nil {
 		t.Fatal(err)
 	}
 	data, err := ds.Get(key)
@@ -70,7 +75,11 @@ func Test_Datastore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res) == 0 {
+	if len(res) != 2 {
+		fmt.Printf("only found %v results \n", len(res))
+		for _, v := range res {
+			fmt.Printf("%+v\n", v)
+		}
 		t.Fatal("bad number of results")
 	}
 	// test a query where we dont specify a search key
