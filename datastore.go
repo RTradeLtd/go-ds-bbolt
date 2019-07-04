@@ -73,11 +73,7 @@ func (d *Datastore) Get(key datastore.Key) ([]byte, error) {
 
 // Has returns whether the key is present in our datastore
 func (d *Datastore) Has(key datastore.Key) (bool, error) {
-	data, err := d.Get(key)
-	if err != nil {
-		return false, err
-	}
-	return data != nil, nil
+	return datastore.GetBackedHas(d, key)
 }
 
 // GetSize returns the size of the value referenced by key
