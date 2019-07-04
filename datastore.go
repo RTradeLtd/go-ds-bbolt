@@ -1,6 +1,7 @@
 package dsbbolt
 
 import (
+	"fmt"
 	"os"
 
 	"bytes"
@@ -103,7 +104,7 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 		pref := []byte(q.Prefix)
 		for k, v := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, v = cursor.Next() {
 			var entry query.Entry
-			entry.Key = string(k)
+			entry.Key = fmt.Sprintf("%s%s", q.Prefix, string(k))
 			if !q.KeysOnly {
 				entry.Value = v
 			}
