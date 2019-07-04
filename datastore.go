@@ -61,6 +61,9 @@ func (d *Datastore) Get(key datastore.Key) ([]byte, error) {
 	var data []byte
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		data = tx.Bucket(d.bucket).Get(key.Bytes())
+		if data == nil {
+			return datastore.ErrNotFound
+		}
 		return nil
 	}); err != nil {
 		return nil, err
