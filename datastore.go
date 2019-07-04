@@ -87,6 +87,7 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 // https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
 // https://github.com/etcd-io/bbolt#prefix-scans
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
+	fmt.Printf("%+v\n", q)
 	var entries []query.Entry
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		cursor := tx.Bucket(d.bucket).Cursor()
@@ -98,6 +99,7 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 					entry.Value = v
 				}
 				entries = append(entries, entry)
+				fmt.Printf("%+v\n", entry)
 			}
 			return nil
 		}
@@ -109,6 +111,7 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 				entry.Value = v
 			}
 			entries = append(entries, entry)
+			fmt.Printf("%+v\n", entry)
 		}
 		return nil
 	}); err != nil {
