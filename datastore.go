@@ -1,9 +1,8 @@
 package dsbbolt
 
 import (
+	"log"
 	"os"
-
-	"bytes"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -98,37 +97,130 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 // https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
 // https://github.com/etcd-io/bbolt#prefix-scans
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
-	var entries []query.Entry
-	if err := d.db.View(func(tx *bbolt.Tx) error {
-		cursor := tx.Bucket(d.bucket).Cursor()
-		if q.Prefix == "" {
-			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-				var entry query.Entry
-				entry.Key = string(k)
-				if !q.KeysOnly {
-					entry.Value = v
-					entry.Size = int(len(entry.Value))
+	var (
+		orders     = q.Orders
+		done       = make(chan bool)
+		resultChan = make(chan query.Result)
+	)
+	log.Printf("%+v\n", q)
+	if len(orders) > 0 {
+		switch q.Orders[0].(type) {
+		case query.OrderByKey, *query.OrderByKey:
+			// already ordered by key
+			orders = nil
+		}
+	}
+	go func() {
+		defer func() {
+			done <- true
+		}()
+		// do some cool search shit here boys
+		d.db.View(func(tx *bbolt.Tx) error {
+			var (
+				buck   = tx.Bucket(d.bucket)
+				c      = buck.Cursor()
+				prefix []byte
+			)
+			if q.Prefix != "" {
+				prefix = []byte(q.Prefix)
+			}
+			// handle my sortiness and collect all results up-front
+			if len(orders) > 0 {
+				var entries []query.Entry
+				// query and filter
+				for k, v := c.Seek(prefix); k != nil; k, v = c.Next() {
+					dk := datastore.NewKey(string(k)).String()
+					e := query.Entry{Key: dk}
+
+					if !q.KeysOnly {
+						// copy afer filtering/sorting
+						e.Value = v
+						e.Size = len(e.Value)
+					}
+					if filter(q.Filters, e) {
+						continue
+					}
+					entries = append(entries, e)
 				}
-				entries = append(entries, entry)
+				// sort
+				query.Sort(orders, entries)
+				// offset/limit
+				if len(entries) >= q.Offset {
+					entries = entries[q.Offset:]
+				}
+				if q.Limit > 0 && q.Limit < len(entries) {
+					entries = entries[:q.Limit]
+				}
+				/* this is causing issues for some reason
+				// offset/limit
+				entries = entries[qrb.Query.Offset:]
+				if qrb.Query.Limit > 0 {
+					if qrb.Query.Limit < len(entries) {
+						entries = entries[:qrb.Query.Limit]
+					}
+				}
+				*/
+				// send
+				for _, e := range entries {
+					// copy late so we don't have to copy values we dont use
+					e.Value = append(e.Value[0:0:0], e.Value...)
+					select {
+					case resultChan <- query.Result{Entry: e}:
+						// TODO(bonedaddy): we might need to re-enable if this blocks
+						//	default:
+					}
+				}
+				return nil
+			}
+			// Otherwise, send results as we get them.
+			offset := 0
+			for k, v := c.Seek(prefix); k != nil; k, v = c.Next() {
+				dk := datastore.NewKey(string(k)).String()
+				e := query.Entry{Key: dk, Value: v}
+				if !q.KeysOnly {
+					// We copy _after_ filtering.
+					e.Value = v
+					e.Size = len(e.Value)
+				}
+				// pre-filter
+				if filter(q.Filters, e) {
+					continue
+				}
+				// now count this item towards the results
+				offset++
+				// check the offset
+				if offset < q.Offset {
+					continue
+				}
+				e.Value = append(e.Value[0:0:0], e.Value...)
+				select {
+				case resultChan <- query.Result{Entry: e}:
+					offset++
+					// TODO(bonedaddy): we might need to re-enable if this blocks
+					//	default:
+				}
+				if q.Limit > 0 && offset >= (q.Offset+q.Limit) {
+					// all done.
+					return nil
+				}
 			}
 			return nil
-		}
-		pref := []byte(q.Prefix)
-		for k, v := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, v = cursor.Next() {
-			var entry query.Entry
-			entry.Key = string(k)
-			if !q.KeysOnly {
-				entry.Value = v
+		})
+	}()
+	var entries []query.Entry
+	for {
+		select {
+		case <-done:
+			goto FINISHED
+		case result := <-resultChan:
+			if result.Error != nil {
+				log.Println("query result failure: ", result.Error)
 			}
-			entries = append(entries, entry)
+			entries = append(entries, result.Entry)
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
-	results := query.ResultsWithEntries(q, entries)
-	// close the result builder since we are done using it
-	return results, nil
+FINISHED:
+	return query.ResultsWithEntries(q, entries), nil
 }
 
 // Sync is used to manually trigger syncing db contents to disk.
@@ -178,4 +270,14 @@ func (bb *bboltBatch) Delete(key datastore.Key) error {
 // Add a put operation to the batch
 func (bb *bboltBatch) Put(key datastore.Key, val []byte) error {
 	return bb.bkt.Put(key.Bytes(), val)
+}
+
+// filter checks if we should filter out the query.
+func filter(filters []query.Filter, entry query.Entry) bool {
+	for _, filter := range filters {
+		if !filter.Filter(entry) {
+			return true
+		}
+	}
+	return false
 }
