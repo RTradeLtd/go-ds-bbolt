@@ -63,7 +63,13 @@ func (d *Datastore) Delete(key datastore.Key) error {
 func (d *Datastore) Get(key datastore.Key) ([]byte, error) {
 	var data []byte
 	if err := d.db.View(func(tx *bbolt.Tx) error {
-		data = tx.Bucket(d.bucket).Get(key.Bytes())
+		// taken from https://github.com/ipfs/go-ds-bolt/blob/master/datastore.go#L54
+		value := tx.Bucket(d.bucket).Get(key.Bytes())
+		if value == nil {
+			return datastore.ErrNotFound
+		}
+		data = make([]byte, len(value))
+		copy(data, value)
 		return nil
 	}); err != nil {
 		return nil, err
