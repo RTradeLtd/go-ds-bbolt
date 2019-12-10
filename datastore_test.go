@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	dstest "github.com/ipfs/go-datastore/test"
 	"go.etcd.io/bbolt"
 )
 
@@ -177,4 +178,14 @@ func Test_Datastore(t *testing.T) {
 		t.Fatal("bad size")
 	}
 
+}
+
+func TestSuite(t *testing.T) {
+	defer os.RemoveAll("./tmp")
+	db, err := NewDatastore("./tmp", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	dstest.SubtestAll(t, db)
 }
