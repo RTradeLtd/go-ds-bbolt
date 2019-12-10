@@ -26,6 +26,9 @@ type Datastore struct {
 
 // NewDatastore is used to instantiate our datastore
 func NewDatastore(path string, opts *bbolt.Options, bucket []byte) (*Datastore, error) {
+	if opts == nil {
+		opts = bbolt.DefaultOptions
+	}
 	db, err := bbolt.Open(path, os.FileMode(0640), opts)
 	if err != nil {
 		return nil, err
