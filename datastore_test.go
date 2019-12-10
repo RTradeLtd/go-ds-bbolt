@@ -54,10 +54,9 @@ func Test_Batch(t *testing.T) {
 	if err := batcher.Delete(datastore.NewKey("helloworld")); err != nil {
 		t.Fatal(err)
 	}
-	if val, err := ds.Get(datastore.NewKey("helloworld")); err != nil {
-		t.Fatal(err)
-	} else if string(val) != "" {
-		t.Fatal("bad string")
+	batcher.Commit()
+	if _, err := ds.Get(datastore.NewKey("helloworld")); err == nil {
+		t.Fatal("error expected")
 	}
 }
 
