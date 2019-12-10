@@ -136,10 +136,38 @@ func (d *Datastore) Sync(prefix datastore.Key) error {
 // it is a temporary method until we implement a proper
 // transactional batched datastore
 func (d *Datastore) Batch() (datastore.Batch, error) {
-	return datastore.NewBasicBatch(d), nil
+	tx, err := d.db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+	return &bboltBatch{
+		tx:  tx,
+		bkt: tx.Bucket(d.bucket),
+	}, nil
 }
 
 // Close is used to close the underlying datastore
 func (d *Datastore) Close() error {
 	return d.db.Close()
+}
+
+// implements batching capabilities
+type bboltBatch struct {
+	tx  *bbolt.Tx
+	bkt *bbolt.Bucket
+}
+
+// Commit the underlying batched transactions
+func (bb *bboltBatch) Commit() error {
+	return bb.tx.Commit()
+}
+
+// Add delete operation to the batch
+func (bb *bboltBatch) Delete(key datastore.Key) error {
+	return bb.bkt.Delete(key.Bytes())
+}
+
+// Add a put operation to the batch
+func (bb *bboltBatch) Put(key datastore.Key, val []byte) error {
+	return bb.bkt.Put(key.Bytes(), val)
 }

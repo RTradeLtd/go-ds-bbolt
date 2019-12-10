@@ -37,6 +37,29 @@ func Test_NewDatastore(t *testing.T) {
 	}
 }
 
+func Test_Batch(t *testing.T) {
+	defer os.RemoveAll("./tmp")
+	ds, err := NewDatastore("./tmp", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batcher, err := ds.Batch()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := batcher.Put(datastore.NewKey("helloworld"), []byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := batcher.Delete(datastore.NewKey("helloworld")); err != nil {
+		t.Fatal(err)
+	}
+	if val, err := ds.Get(datastore.NewKey("helloworld")); err != nil {
+		t.Fatal(err)
+	} else if string(val) != "" {
+		t.Fatal("bad string")
+	}
+}
+
 func Test_Sync(t *testing.T) {
 	type args struct {
 		sync bool
