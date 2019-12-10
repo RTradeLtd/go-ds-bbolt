@@ -2,12 +2,14 @@ package dsbbolt
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"reflect"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	"go.etcd.io/bbolt"
 )
 
 func Test_NewDatastore(t *testing.T) {
@@ -30,6 +32,38 @@ func Test_NewDatastore(t *testing.T) {
 				if err := ds.Close(); err != nil {
 					t.Fatal(err)
 				}
+			}
+		})
+	}
+}
+
+func Test_Sync(t *testing.T) {
+	type args struct {
+		sync bool
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{"With-Sync", args{true}},
+		{"Without-Sync", args{false}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer os.RemoveAll("./tmp")
+			opts := bbolt.DefaultOptions
+			// we want the "inverse" of sync because this is "no sync"
+			// that is, if we specify sync, we want to say "no thank you nosync"
+			opts.NoSync = !tt.args.sync
+			ds, err := NewDatastore("./tmp", opts, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ds.withSync != tt.args.sync {
+				t.Fatal("bad sync status")
+			}
+			if err := ds.Sync(datastore.NewKey("hmm")); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}

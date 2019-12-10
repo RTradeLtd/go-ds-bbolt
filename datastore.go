@@ -19,13 +19,14 @@ var (
 // Datastore implements an ipfs datastore
 // backed by a bbolt db
 type Datastore struct {
-	db     *bbolt.DB
-	bucket []byte
+	db       *bbolt.DB
+	bucket   []byte
+	withSync bool
 }
 
 // NewDatastore is used to instantiate our datastore
 func NewDatastore(path string, opts *bbolt.Options, bucket []byte) (*Datastore, error) {
-	db, err := bbolt.Open(path, os.FileMode(0640), nil)
+	db, err := bbolt.Open(path, os.FileMode(0640), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +39,7 @@ func NewDatastore(path string, opts *bbolt.Options, bucket []byte) (*Datastore, 
 	}); err != nil {
 		return nil, err
 	}
-	return &Datastore{db, bucket}, nil
+	return &Datastore{db, bucket, !opts.NoSync}, nil
 }
 
 // Put is used to store something in our underlying datastore
@@ -117,6 +118,15 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 	results := query.ResultsWithEntries(q, entries)
 	// close the result builder since we are done using it
 	return results, nil
+}
+
+// Sync is used to manually trigger syncing db contents to disk.
+// This call is only usable when synchronous writes aren't enabled
+func (d *Datastore) Sync(prefix datastore.Key) error {
+	if d.withSync {
+		return nil
+	}
+	return d.db.Sync()
 }
 
 // Batch returns a basic batched bolt datastore wrapper
