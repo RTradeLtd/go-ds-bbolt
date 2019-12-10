@@ -78,13 +78,7 @@ func (d *Datastore) Get(key datastore.Key) ([]byte, error) {
 
 // Has returns whether the key is present in our datastore
 func (d *Datastore) Has(key datastore.Key) (bool, error) {
-	var found bool
-	err := d.db.View(func(tx *bbolt.Tx) error {
-		val := tx.Bucket(d.bucket).Get(key.Bytes())
-		found = val != nil
-		return nil
-	})
-	return found, err
+	return datastore.GetBackedHas(d, key)
 }
 
 // GetSize returns the size of the value referenced by key
