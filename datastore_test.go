@@ -2,12 +2,15 @@ package dsbbolt
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"reflect"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	dstest "github.com/ipfs/go-datastore/test"
+	"go.etcd.io/bbolt"
 )
 
 func Test_NewDatastore(t *testing.T) {
@@ -30,6 +33,60 @@ func Test_NewDatastore(t *testing.T) {
 				if err := ds.Close(); err != nil {
 					t.Fatal(err)
 				}
+			}
+		})
+	}
+}
+
+func Test_Batch(t *testing.T) {
+	defer os.RemoveAll("./tmp")
+	ds, err := NewDatastore("./tmp", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batcher, err := ds.Batch()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := batcher.Put(datastore.NewKey("helloworld"), []byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := batcher.Delete(datastore.NewKey("helloworld")); err != nil {
+		t.Fatal(err)
+	}
+	batcher.Commit()
+	if _, err := ds.Get(datastore.NewKey("helloworld")); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func Test_Sync(t *testing.T) {
+	type args struct {
+		sync bool
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{"With-Sync", args{true}},
+		{"Without-Sync", args{false}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer os.RemoveAll("./tmp")
+			opts := bbolt.DefaultOptions
+			// we want the "inverse" of sync because this is "no sync"
+			// that is, if we specify sync, we want to say "no thank you nosync"
+			opts.NoSync = !tt.args.sync
+			ds, err := NewDatastore("./tmp", opts, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ds.withSync != tt.args.sync {
+				t.Fatal("bad sync status")
+			}
+			if err := ds.Sync(datastore.NewKey("hmm")); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}
@@ -120,4 +177,14 @@ func Test_Datastore(t *testing.T) {
 		t.Fatal("bad size")
 	}
 
+}
+
+func TestSuite(t *testing.T) {
+	defer os.RemoveAll("./tmp")
+	db, err := NewDatastore("./tmp", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	dstest.SubtestAll(t, db)
 }
