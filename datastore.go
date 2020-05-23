@@ -1,6 +1,7 @@
 package dsbbolt
 
 import (
+	"fmt"
 	"os"
 
 	"bytes"
@@ -60,6 +61,9 @@ func (d *Datastore) Get(key datastore.Key) ([]byte, error) {
 	var data []byte
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		data = tx.Bucket(d.bucket).Get(key.Bytes())
+		if data == nil {
+			return datastore.ErrNotFound
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -86,6 +90,7 @@ func (d *Datastore) GetSize(key datastore.Key) (int, error) {
 // https://github.com/ipfs/go-datastore/blob/aa9190c18f1576be98e974359fd08c64ca0b5a94/examples/fs.go#L96
 // https://github.com/etcd-io/bbolt#prefix-scans
 func (d *Datastore) Query(q query.Query) (query.Results, error) {
+	fmt.Printf("%+v\n", q)
 	var entries []query.Entry
 	if err := d.db.View(func(tx *bbolt.Tx) error {
 		cursor := tx.Bucket(d.bucket).Cursor()
@@ -98,17 +103,19 @@ func (d *Datastore) Query(q query.Query) (query.Results, error) {
 					entry.Size = int(len(entry.Value))
 				}
 				entries = append(entries, entry)
+				fmt.Printf("%+v\n", entry)
 			}
 			return nil
 		}
 		pref := []byte(q.Prefix)
 		for k, v := cursor.Seek(pref); k != nil && bytes.HasPrefix(k, pref); k, v = cursor.Next() {
 			var entry query.Entry
-			entry.Key = string(k)
+			entry.Key = fmt.Sprintf("%s%s", q.Prefix, string(k))
 			if !q.KeysOnly {
 				entry.Value = v
 			}
 			entries = append(entries, entry)
+			fmt.Printf("%+v\n", entry)
 		}
 		return nil
 	}); err != nil {
