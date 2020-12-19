@@ -23,6 +23,10 @@ type Datastore struct {
 	bucket []byte
 }
 
+func (d *Datastore) Sync(_ datastore.Key) error {
+	return nil // no-op
+}
+
 // NewDatastore is used to instantiate our datastore
 func NewDatastore(path string, opts *bbolt.Options, bucket []byte) (*Datastore, error) {
 	db, err := bbolt.Open(path, os.FileMode(0640), nil)
